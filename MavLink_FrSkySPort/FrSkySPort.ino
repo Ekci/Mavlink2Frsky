@@ -208,10 +208,10 @@ void FrSkySPort_ProcessSensorRequest(uint8_t sensorId)
       FrSkySPort_SendPackage(FR_ID_ACCZ, fetchAccZ()); 
       break; 
     case 5:
-      FrSkySPort_SendPackage(FR_ID_T1,gps_status); 
+      FrSkySPort_SendPackage(FR_ID_T1,ap_sat_visible); 
       break; 
     case 6:
-      FrSkySPort_SendPackage(FR_ID_T2,ap_base_mode); 
+      FrSkySPort_SendPackage(FR_ID_T2,ap_fixtype); 
       break;
     case 7:
       FrSkySPort_SendPackage(FR_ID_FUEL,ap_custom_mode); 
