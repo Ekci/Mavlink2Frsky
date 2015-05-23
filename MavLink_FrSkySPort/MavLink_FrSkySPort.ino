@@ -45,45 +45,11 @@ APM2.5 Mavlink to FrSky X8R SPort interface using Teensy 3.1  http://www.pjrc.co
  */
 
 #include <GCS_MAVLink.h>
-#include <Tone.h>
 #include "FrSkySPort.h"
-////////////////////////////////
-Tone tone1;
-
-#define isdigit(n) (n >= '0' && n <= '9')
-
-#define OCTAVE_OFFSET 0
-
-int notes[] = { 0,
-
-NOTE_C4, NOTE_CS4, NOTE_D4, NOTE_DS4, NOTE_E4, NOTE_F4, NOTE_FS4, NOTE_G4, NOTE_GS4, NOTE_A4, NOTE_AS4, NOTE_B4,
-NOTE_C5, NOTE_CS5, NOTE_D5, NOTE_DS5, NOTE_E5, NOTE_F5, NOTE_FS5, NOTE_G5, NOTE_GS5, NOTE_A5, NOTE_AS5, NOTE_B5,
-NOTE_C6, NOTE_CS6, NOTE_D6, NOTE_DS6, NOTE_E6, NOTE_F6, NOTE_FS6, NOTE_G6, NOTE_GS6, NOTE_A6, NOTE_AS6, NOTE_B6,
-NOTE_C7, NOTE_CS7, NOTE_D7, NOTE_DS7, NOTE_E7, NOTE_F7, NOTE_FS7, NOTE_G7, NOTE_GS7, NOTE_A7, NOTE_AS7, NOTE_B7
-};
-
-//****************************************SONGS*****************************************************************
-
-
-char *song_armed = "MissionImp:d=16,o=6,b=95:32d,32d#,32d,32d#,32d,32d#,32d,32d#,32d,32d,32d#,32e,32f,32f#,32g,g,8p,g,8p,a#,p,c7,p,g,8p,g,8p,f,p,f#,p,g,8p,g,8p,a#,p,c7,p,g,8p,g,8p,f,p,f#,p,a#,g,2d,32p,a#,g,2c#,32p,a#,g,2c,a#5,8c,2p,32p,a#5,g5,2f#,32p,a#5,g5,2f,32p,a#5,g5,2e,d#,8d";
-char *song_disarmed =  "smbdeath:d=4,o=5,b=90:32c6,32c6,32c6,8p,16b,16f6,16p,16f6,16f.6,16e.6,16d6,16c6,16p,16e,16p,16c";
-
-char *song = "Gadget:d=16,o=5,b=50:32d#,32f,32f#,32g#,a#,f#,a,f,g#,f#,32d#,32f,32f#,32g#,a#,d#6,4d6,32d#,32f,32f#,32g#,a#,f#,a,f,g#,f#,8d#";
-
-//****************************************SONGS*****************************************************************
-uint8_t    song_played = 0;
-///////////////////////////////////////////////////////////////////////
 
 #define _MavLinkSerial      Serial
 #define START                   1
 #define MSG_RATE            10              // Hertz
-
-//#define DEBUG_VFR_HUD
-//#define DEBUG_GPS_RAW
-//#define DEBUG_ACC
-//#define DEBUG_BAT
-//#define DEBUG_FRSKY_SENSOR_REQUEST
-
 
 // ******************************************
 // Message #0  HEARTHBEAT 
@@ -143,21 +109,16 @@ void setup()  {
 
   FrSkySPort_Init();
   _MavLinkSerial.begin(57600);
-  //debugSerial.begin(57600);
   MavLink_Connected = 0;
   MavLink_Connected_timer=millis();
   hb_timer = millis();
   hb_count = 0;
 
-
-  tone1.begin(11);
-  play_rtttl(song_disarmed);
   pinMode(led,OUTPUT);
   pinMode(12,OUTPUT);
 
   pinMode(14,INPUT);
   analogReference(DEFAULT);
-
 }
 
 
@@ -193,19 +154,6 @@ void loop()  {
 
   FrSkySPort_Process();               // Check FrSky S.Port communication
   
-  
-  if(song_played == 0 ){
-  if(ap_base_mode){  // If ARMED
-  play_rtttl(song_armed);
-   song_played = 1;
-    }
-  }
-  if(!ap_base_mode ){  // Not If ARMED
-  if(song_played == 1){
-  play_rtttl(song_disarmed);
-      song_played = 0;
-    }
-  }
   adc2 =analogRead(0)/4;               // Read ananog value from A0 (Pin 14). ( Will be A2 value on FrSky LCD)
 }
 
@@ -235,15 +183,13 @@ void _MavLink_receive() {
           }
         }
         break;
+        
       case MAVLINK_MSG_ID_SYS_STATUS :   // 1
         ap_voltage_battery = Get_Volt_Average(mavlink_msg_sys_status_get_voltage_battery(&msg));  // 1 = 1mV
         ap_current_battery = Get_Current_Average(mavlink_msg_sys_status_get_current_battery(&msg));     // 1=10mA
 
         storeVoltageReading(ap_voltage_battery);
         storeCurrentReading(ap_current_battery);
-#ifdef DEBUG_BAT
-
-#endif
         uint8_t temp_cell_count;
         if(ap_voltage_battery > 21000) temp_cell_count = 6;
         else if (ap_voltage_battery > 17500) temp_cell_count = 5;
@@ -254,6 +200,7 @@ void _MavLink_receive() {
         if(temp_cell_count > ap_cell_count)
           ap_cell_count = temp_cell_count;
         break;
+        
       case MAVLINK_MSG_ID_GPS_RAW_INT:   // 24
         ap_fixtype = mavlink_msg_gps_raw_int_get_fix_type(&msg);                               // 0 = No GPS, 1 =No Fix, 2 = 2D Fix, 3 = 3D Fix
         ap_sat_visible =  mavlink_msg_gps_raw_int_get_satellites_visible(&msg);          // numbers of visible satelites
@@ -269,190 +216,25 @@ void _MavLink_receive() {
         {
           ap_gps_speed = 0;  
         }
-#ifdef DEBUG_GPS_RAW    
-                                   
-#endif
         break;
+        
       case MAVLINK_MSG_ID_RAW_IMU:   // 27
         storeAccX(mavlink_msg_raw_imu_get_xacc(&msg) / 10);
         storeAccY(mavlink_msg_raw_imu_get_yacc(&msg) / 10);
         storeAccZ(mavlink_msg_raw_imu_get_zacc(&msg) / 10);
-
-#ifdef DEBUG_ACC
-
-
-#endif
         break;      
+        
       case MAVLINK_MSG_ID_VFR_HUD:   //  74
         ap_groundspeed = mavlink_msg_vfr_hud_get_groundspeed(&msg);      // 100 = 1m/s
         ap_heading = mavlink_msg_vfr_hud_get_heading(&msg);     // 100 = 100 deg
         ap_throttle = mavlink_msg_vfr_hud_get_throttle(&msg);        //  100 = 100%
         ap_bar_altitude = mavlink_msg_vfr_hud_get_alt(&msg) * 100;        //  m
         ap_climb_rate=mavlink_msg_vfr_hud_get_climb(&msg) * 100;        //  m/s
-#ifdef DEBUG_VFR_HUD
-
-#endif
         break; 
+        
       default:
         break;
       }
-
-    }
-  }
-}
-
-
-
-void play_rtttl(char *p)
-{
-  // Absolutely no error checking in here
-
-  byte default_dur = 4;
-  byte default_oct = 6;
-  int bpm = 63;
-  int num;
-  long wholenote;
-  long duration;
-  byte note;
-  byte scale;
-
-  // format: d=N,o=N,b=NNN:
-  // find the start (skip name, etc)
-
-  while(*p != ':') p++;    // ignore name
-  p++;                     // skip ':'
-
-  // get default duration
-  if(*p == 'd')
-  {
-    p++; p++;              // skip "d="
-    num = 0;
-    while(isdigit(*p))
-    {
-      num = (num * 10) + (*p++ - '0');
-    }
-    if(num > 0) default_dur = num;
-    p++;                   // skip comma
-  }
-  
-  // get default octave
-  if(*p == 'o')
-  {
-    p++; p++;              // skip "o="
-    num = *p++ - '0';
-    if(num >= 3 && num <=7) default_oct = num;
-    p++;                   // skip comma
-  }
-
-
-
-  // get BPM
-  if(*p == 'b')
-  {
-    p++; p++;              // skip "b="
-    num = 0;
-    while(isdigit(*p))
-    {
-      num = (num * 10) + (*p++ - '0');
-    }
-    bpm = num;
-    p++;                   // skip colon
-  }
-
-  // BPM usually expresses the number of quarter notes per minute
-  wholenote = (60 * 1000L / bpm) * 4;  // this is the time for whole note (in milliseconds)
-
-
-
-
-  // now begin note loop
-  while(*p)
-  {
-    // first, get note duration, if available
-    num = 0;
-    while(isdigit(*p))
-    {
-      num = (num * 10) + (*p++ - '0');
-    }
-    
-    if(num) duration = wholenote / num;
-    else duration = wholenote / default_dur;  // we will need to check if we are a dotted note after
-
-    // now get the note
-    note = 0;
-
-    switch(*p)
-    {
-      case 'c':
-        note = 1;
-        break;
-      case 'd':
-        note = 3;
-        break;
-      case 'e':
-        note = 5;
-        break;
-      case 'f':
-        note = 6;
-        break;
-      case 'g':
-        note = 8;
-        break;
-      case 'a':
-        note = 10;
-        break;
-      case 'b':
-        note = 12;
-        break;
-      case 'p':
-      default:
-        note = 0;
-    }
-    p++;
-
-    // now, get optional '#' sharp
-    if(*p == '#')
-    {
-      note++;
-      p++;
-    }
-
-    // now, get optional '.' dotted note
-    if(*p == '.')
-    {
-      duration += duration/2;
-      p++;
-    }
-  
-    // now, get scale
-    if(isdigit(*p))
-    {
-      scale = *p - '0';
-      p++;
-    }
-    else
-    {
-      scale = default_oct;
-    }
-
-    scale += OCTAVE_OFFSET;
-
-    if(*p == ',')
-      p++;       // skip comma for next note (or we may be at the end)
-
-    // now play the note
-
-    if(note)
-    {
-
-      tone1.play(notes[(scale - 4) * 12 + note]);
-      delay(duration);
-      tone1.stop();
-    }
-    else
-    {
-
-      delay(duration);
     }
   }
 }
